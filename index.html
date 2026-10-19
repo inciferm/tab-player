@@ -3,224 +3,657 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Плеер табулатур</title>
-<style>html,body{margin:0;background:#0b0f17}</style>
+<title>Плеер табулатур — alphaTab</title>
+<style>html,body{margin:0;background:#0c0d10}</style>
 </head>
 <body>
+<!-- =====================================================================
+     ПЛЕЕР ТАБУЛАТУР ДЛЯ TILDA (alphaTab 1.8.4)
+     Весь этот файл целиком вставляется в блок T123 («HTML-код»).
+     Репозиторий: https://github.com/inciferm/tab-player
+     ===================================================================== -->
 
-<!-- ======== НАЧАЛО: копируйте отсюда в блок T123 на Tilda ======== -->
-<script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.js"></script>
+<!-- ===================== 1. НАСТРОЙКИ (меняйте только здесь) =====================
+     songs  — список песен. Каждая песня: название и ПРЯМАЯ ссылка на файл в S3.
+              Поддерживаются .gp, .gpx, .gp5, .gp4, .gp3, .musicxml.
+              Чтобы добавить песню — скопируйте строку { ... }, поставьте запятую
+              после предыдущей и замените название и ссылку.
+     ================================================================================= -->
+<script>
+window.TAB_PLAYER_CONFIG = {
+  songs: [
+    { title: 'Europe — The Final Countdown', url: 'https://s3.ru1.storage.beget.cloud/da2c637cd627-enterprising-viola/europe-the_final_countdown_7.gp5' }
+    // , { title: 'Название песни', url: 'https://s3.ru1.storage.beget.cloud/ВАШ-БАКЕТ/файл.gp' }
+  ],
 
+  // Необязательно: ссылка на файл songs.json в S3 со списком песен (тот же формат,
+  // что и songs выше). Если указана — список берётся из файла, и код на Tilda
+  // больше не придётся править при добавлении песен. Оставьте '' если не нужно.
+  songsJsonUrl: '',
+
+  encoding: 'windows-1251', // Кодировка старых файлов .gp3/.gp4/.gp5 (русские названия). Для .gp/.gpx не важна
+  height: '100vh',          // Высота плеера: '100vh' = весь экран, или например '800px'
+  accent: '#f5a524',        // Акцентный цвет (кнопки, курсор, подсветка нот)
+  allowLocalFiles: true,    // Показать кнопку «Открыть файл» (файл с компьютера посетителя)
+  allowUrlInput: true       // Показать поле «Вставить ссылку» (любая прямая ссылка)
+};
+</script>
+
+<!-- ===================== 2. ПОДКЛЮЧЕНИЕ ДВИЖКА alphaTab =====================
+     Версия закреплена (1.8.4), чтобы обновления движка не сломали плеер. -->
+<script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.8.4/dist/alphaTab.min.js"></script>
+
+<!-- Шрифт интерфейса с поддержкой кириллицы -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+<!-- ===================== 3. ОФОРМЛЕНИЕ (тёмная тема) ===================== -->
 <style>
-  .atp{--bg:#0b0f17;--panel:#111827;--panel2:#1a2233;--line:#252f45;--text:#e5e7eb;--muted:#8b95a9;--accent:#6366f1;--accent2:#8b5cf6;
-    position:relative;left:50%;margin-left:-50vw;width:100vw;height:100vh;min-height:600px;display:flex;flex-direction:column;
-    background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;overflow:hidden}
-  .atp *{box-sizing:border-box}
-  .atp-top{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
-  .atp-logo{font-weight:700;letter-spacing:.3px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;font-size:16px}
-  .atp-title{margin-left:auto;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
-  .atp select,.atp button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:10px;height:38px;padding:0 14px;cursor:pointer;transition:.15s}
-  .atp select:hover,.atp button:hover{border-color:var(--accent)}
-  .atp button.on{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff}
-  .atp button:disabled{opacity:.4;cursor:not-allowed}
+  /* Все стили начинаются с .atp — они не пересекаются со стилями Tilda */
+  .atp{
+    --bg:#0c0d10; --surface:#14161b; --surface2:#1b1e25; --surface3:#23272f;
+    --line:#2a2e37; --text:#ecebe8; --muted:#8d919b; --faint:#5d616b;
+    --accent:#f5a524; --accent-ink:#1a1305; --danger:#ef5f5f;
+    --radius:12px; --h:100vh;
+    position:relative; width:100%; height:var(--h); min-height:520px;
+    display:flex; flex-direction:column; overflow:hidden;
+    background:var(--bg); color:var(--text);
+    font:14px/1.4 'Onest',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .atp *,.atp *::before,.atp *::after{box-sizing:border-box}
+  .atp button,.atp select,.atp input{font:inherit;color:inherit}
+  /* Иконки интерфейса (не трогаем SVG нот внутри .atp-view) */
+  .atp-top svg,.atp-side svg,.atp-transport svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---- Верхняя панель: логотип, выбор песни, загрузка файла ---- */
+  .atp-top{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .atp-brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.02em;margin-right:6px;white-space:nowrap}
+  .atp-brand i{width:10px;height:10px;border-radius:3px;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  .atp-song{flex:1 1 260px;min-width:0;display:flex;gap:8px}
+  .atp-select,.atp-input{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);padding:0 12px;min-width:0;outline:none;transition:border-color .15s}
+  .atp-select{flex:1;cursor:pointer;appearance:none;-webkit-appearance:none;padding-right:34px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238d919b' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center}
+  .atp-select option{background:var(--surface2)}
+  .atp-select:hover,.atp-input:hover,.atp-select:focus,.atp-input:focus{border-color:var(--accent)}
+  .atp-url{display:flex;gap:6px;flex:1 1 280px;min-width:0}
+  .atp-url .atp-input{flex:1}
+
+  /* ---- Кнопки ---- */
+  .atp-btn{height:38px;min-width:38px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    border-radius:10px;border:1px solid var(--line);background:var(--surface2);cursor:pointer;white-space:nowrap;
+    transition:background .15s,border-color .15s,color .15s,transform .1s}
+  .atp-btn:hover{border-color:var(--faint);background:var(--surface3)}
+  .atp-btn:active{transform:scale(.97)}
+  .atp-btn:focus-visible,.atp-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .atp-btn.on{background:color-mix(in srgb,var(--accent) 16%,var(--surface2));border-color:var(--accent);color:var(--accent)}
+  .atp-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+  .atp-btn.icon{padding:0}
+  .atp-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+  .atp-btn.primary:hover{filter:brightness(1.08)}
+  .atp-play{width:48px;height:48px;border-radius:50%;padding:0}
+  .atp-play svg{width:22px;height:22px;fill:currentColor;stroke:none}
+
+  /* ---- Основная область: список инструментов + ноты ---- */
   .atp-body{flex:1;display:flex;min-height:0;position:relative}
-  .atp-side{width:290px;flex:0 0 290px;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:12px}
-  .atp-h{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:4px 6px 10px}
-  .atp-track{padding:10px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);transition:.15s}
-  .atp-track.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-  .atp-tname{font-weight:600;cursor:pointer;margin-bottom:8px}
-  .atp-trow{display:flex;align-items:center;gap:6px}
-  .atp-trow button{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
-  .atp-trow input{flex:1;min-width:50px}
-  .atp-view{flex:1;overflow-y:auto;padding:16px 24px;position:relative}
-  .atp-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:rgba(11,15,23,.85);backdrop-filter:blur(4px);font-size:16px;text-align:center;padding:20px}
-  .atp-spin{width:36px;height:36px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:atpspin 1s linear infinite}
-  @keyframes atpspin{to{transform:rotate(360deg)}}
-  .atp-bottom{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 20px;background:var(--panel);border-top:1px solid var(--line)}
-  .atp-play{width:46px;padding:0;border-radius:50%;height:46px;font-size:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none}
-  .atp-seek{flex:1;min-width:160px}
-  .atp-time,.atp-load{color:var(--muted);font-variant-numeric:tabular-nums}
-  .atp input[type=range]{accent-color:var(--accent);cursor:pointer}
-  .atp ::-webkit-scrollbar{width:10px}.atp ::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
-  .at-cursor-bar{background:rgba(99,102,241,.18)}
-  .at-selection div{background:rgba(99,102,241,.15)}
-  .at-cursor-beat{background:#8b5cf6;width:3px}
-  .at-highlight *{fill:#a78bfa;stroke:#a78bfa}
-  @media(max-width:800px){.atp-body{flex-direction:column}.atp-side{width:100%;flex:0 0 190px;border-right:0;border-bottom:1px solid var(--line)}.atp-title{display:none}.atp-view{padding:8px}}
+  .atp-side{width:280px;flex:0 0 280px;display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--line);min-height:0;transition:margin .2s}
+  .atp.side-hidden .atp-side{margin-left:-280px}
+  .atp-side-h{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 8px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em}
+  .atp-info{padding:0 16px 12px;border-bottom:1px solid var(--line)}
+  .atp-info b{display:block;font-size:16px;font-weight:600;line-height:1.25;word-break:break-word}
+  .atp-info span{color:var(--muted);font-size:13px}
+  .atp-tracks{flex:1;overflow-y:auto;padding:10px}
+  .atp-track{border:1px solid transparent;border-radius:var(--radius);padding:10px;margin-bottom:6px;background:var(--surface2);transition:border-color .15s}
+  .atp-track.shown{border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
+  .atp-track-top{display:flex;align-items:center;gap:10px;cursor:pointer}
+  .atp-ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--surface3);color:var(--muted);flex:none}
+  .atp-track.shown .atp-ico{color:var(--accent)}
+  .atp-tname{flex:1;min-width:0}
+  .atp-tname b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .atp-tname span{font-size:12px;color:var(--muted)}
+  .atp-eye{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--faint)}
+  .atp-track.shown .atp-eye{color:var(--accent);border-color:var(--accent)}
+  .atp-eye svg{width:15px;height:15px}
+  .atp-track-ctl{display:flex;align-items:center;gap:6px;margin-top:10px}
+  .atp-ms{height:26px;min-width:30px;padding:0 8px;font-size:11px;font-weight:700;border-radius:7px;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--muted)}
+  .atp-ms.mute.on{background:var(--danger);border-color:var(--danger);color:#fff}
+  .atp-ms.solo.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .atp-hint{padding:10px 16px 14px;color:var(--faint);font-size:12px;border-top:1px solid var(--line)}
+
+  /* Ползунки (громкость, прогресс) */
+  .atp-range{-webkit-appearance:none;appearance:none;flex:1;min-width:40px;height:4px;border-radius:4px;background:var(--surface3);outline:none;cursor:pointer;
+    background-image:linear-gradient(var(--accent),var(--accent));background-repeat:no-repeat;background-size:var(--p,100%) 100%}
+  .atp-range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:0;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .atp-range::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:0}
+
+  /* ---- Область нот ---- */
+  .atp-view{flex:1;min-width:0;overflow:auto;position:relative;background:var(--bg)}
+  .atp-score{padding:24px 8px 48px}
+  /* Курсор и подсветка нот при воспроизведении (классы задаёт alphaTab) */
+  .atp .at-cursor-bar{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+  .atp .at-cursor-beat{background:var(--accent);width:3px;box-shadow:0 0 10px var(--accent)}
+  .atp .at-selection div{background:color-mix(in srgb,var(--accent) 22%,transparent)}
+  .atp .at-highlight *{fill:var(--accent);stroke:var(--accent)}
+
+  /* ---- Загрузка / ошибка / пустое состояние ---- */
+  .atp-overlay{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(6px)}
+  .atp-overlay[hidden]{display:none}
+  .atp-card{max-width:520px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;text-align:center}
+  .atp-card h3{margin:0 0 8px;font-size:18px;font-weight:600}
+  .atp-card p{margin:0 0 6px;color:var(--muted)}
+  .atp-card code{display:block;margin:10px 0;padding:8px 10px;background:var(--bg);border-radius:8px;font:12px 'JetBrains Mono',monospace;color:var(--muted);word-break:break-all;text-align:left}
+  .atp-card.err h3{color:var(--danger)}
+  .atp-card ol{text-align:left;color:var(--muted);margin:10px 0 0;padding-left:20px}
+  .atp-card li{margin:4px 0}
+  .atp-spin{width:38px;height:38px;margin:0 auto 14px;border-radius:50%;border:3px solid var(--surface3);border-top-color:var(--accent);animation:atp-spin .9s linear infinite}
+  @keyframes atp-spin{to{transform:rotate(360deg)}}
+  .atp-bar{height:4px;border-radius:4px;background:var(--surface3);overflow:hidden;margin-top:14px}
+  .atp-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+
+  /* ---- Нижняя панель управления воспроизведением ---- */
+  .atp-transport{position:relative;display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surface);border-top:1px solid var(--line);flex-wrap:wrap}
+  .atp-group{display:flex;align-items:center;gap:6px}
+  .atp-seek{flex:1 1 150px;display:flex;align-items:center;gap:10px;min-width:150px}
+  .atp-time{font:500 12px 'JetBrains Mono',ui-monospace,monospace;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .atp-sep{width:1px;height:26px;background:var(--line)}
+  .atp-small{height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);padding:0 28px 0 10px;cursor:pointer;appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238d919b' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+  .atp-small option{background:var(--surface2)}
+  .atp-vol{display:flex;align-items:center;gap:8px;width:110px;color:var(--muted)}
+  /* Индикатор загрузки звуков — маленькая плашка над панелью */
+  .atp-sound{position:absolute;right:16px;bottom:calc(100% + 10px);z-index:5;font-size:12px;color:var(--muted);white-space:nowrap;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .atp-sound:empty{display:none}
+
+  /* ---- Телефоны и планшеты ---- */
+  @media (max-width:1180px){.atp-hide-l{display:none!important}}
+  @media (max-width:900px){
+    .atp-side{position:absolute;z-index:15;top:0;bottom:0;left:0;box-shadow:12px 0 30px rgba(0,0,0,.5)}
+    .atp-url{order:5;flex:1 1 calc(100% - 60px)}
+    [data-el=filebtn]{order:6}
+    .atp-hide-m{display:none!important}
+    .atp-vol{width:100px}
+  }
+  @media (max-width:560px){
+    .atp-top,.atp-transport{padding:8px 10px;gap:6px}
+    .atp-brand{display:none}
+    .atp-seek{order:-1;flex-basis:100%}
+    .atp-sep{display:none}
+    .atp-vol{display:none}
+  }
+  @media print{.atp-top,.atp-side,.atp-transport{display:none}}
 </style>
 
+<!-- ===================== 4. РАЗМЕТКА ПЛЕЕРА ===================== -->
 <div class="atp" id="atp">
+  <!-- Верхняя панель -->
   <div class="atp-top">
-    <span class="atp-logo">♪ ТАБЫ</span>
-    <select id="atp-songs" title="Выбор песни"></select>
-    <span class="atp-title" id="atp-title"></span>
+    <button class="atp-btn icon" data-act="side" title="Показать/скрыть инструменты" aria-label="Инструменты">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="atp-brand"><i></i><span>Табулатуры</span></div>
+    <div class="atp-song">
+      <select class="atp-select" data-el="songs" aria-label="Выбор песни"></select>
+    </div>
+    <form class="atp-url" data-el="urlform">
+      <input class="atp-input" data-el="url" type="url" placeholder="Вставьте прямую ссылку на .gp / .gp5 / .gpx" aria-label="Ссылка на файл">
+      <button class="atp-btn" type="submit">Открыть</button>
+    </form>
+    <label class="atp-btn" data-el="filebtn" title="Открыть файл с компьютера">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      <span class="atp-hide-m">Файл</span>
+      <input type="file" data-el="file" accept=".gp,.gpx,.gp3,.gp4,.gp5,.gp7,.xml,.musicxml,.mxl" hidden>
+    </label>
   </div>
 
   <div class="atp-body">
-    <div class="atp-overlay" id="atp-overlay"><div class="atp-spin"></div><div id="atp-overlay-text">Загрузка нот…</div></div>
-    <div class="atp-side">
-      <div class="atp-h">Инструменты</div>
-      <div id="atp-tracks"></div>
+    <!-- Левая панель: информация о песне и инструменты -->
+    <aside class="atp-side">
+      <div class="atp-side-h">Песня</div>
+      <div class="atp-info"><b data-el="title">—</b><span data-el="artist"></span></div>
+      <div class="atp-side-h"><span>Инструменты</span><span data-el="tcount"></span></div>
+      <div class="atp-tracks" data-el="tracks"></div>
+      <div class="atp-hint">Нажмите на инструмент, чтобы показать его ноты. Значок глаза добавляет ещё одну дорожку на экран. M — заглушить, S — слушать только его.</div>
+    </aside>
+
+    <!-- Ноты/табы рисуются здесь -->
+    <div class="atp-view" data-el="view">
+      <div class="atp-score" data-el="score"></div>
     </div>
-    <div class="atp-view" id="atp-view"><div id="atp-main"></div></div>
+
+    <!-- Окно загрузки / ошибки -->
+    <div class="atp-overlay" data-el="overlay">
+      <div class="atp-card" data-el="card"></div>
+    </div>
   </div>
 
-  <div class="atp-bottom">
-    <button class="atp-play" id="atp-play" disabled title="Играть / Пауза">▶</button>
-    <button id="atp-stop" disabled title="Стоп">■</button>
-    <input class="atp-seek" id="atp-seek" type="range" min="0" max="1000" value="0" step="1">
-    <span class="atp-time" id="atp-time">00:00 / 00:00</span>
-    <span class="atp-load" id="atp-load">Звуки: 0%</span>
-    <button id="atp-count" title="Отсчёт перед началом">Отсчёт</button>
-    <button id="atp-metro" title="Метроном">Метроном</button>
-    <button id="atp-loop" title="Повтор">Повтор</button>
-    <select id="atp-speed" title="Скорость">
-      <option value="0.5">Скорость 50%</option><option value="0.75">Скорость 75%</option>
-      <option value="0.9">Скорость 90%</option><option value="1" selected>Скорость 100%</option>
-      <option value="1.25">Скорость 125%</option>
-    </select>
-    <select id="atp-zoom" title="Масштаб">
-      <option value="0.75">Масштаб 75%</option><option value="1" selected>Масштаб 100%</option>
-      <option value="1.25">Масштаб 125%</option><option value="1.5">Масштаб 150%</option>
-    </select>
-    <button id="atp-print" title="Печать">Печать</button>
+  <!-- Нижняя панель управления -->
+  <div class="atp-transport">
+    <div class="atp-group">
+      <button class="atp-btn icon" data-act="stop" title="Стоп (в начало)" aria-label="Стоп" disabled>
+        <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+      </button>
+      <button class="atp-btn primary atp-play" data-act="play" title="Играть / пауза (пробел)" aria-label="Играть" disabled>
+        <svg viewBox="0 0 24 24" data-el="playicon"><path d="M8 5.5v13l11-6.5z"/></svg>
+      </button>
+    </div>
+    <div class="atp-seek">
+      <span class="atp-time" data-el="cur">00:00</span>
+      <input class="atp-range" data-el="seek" type="range" min="0" max="1000" value="0" style="--p:0%" aria-label="Позиция">
+      <span class="atp-time" data-el="end">00:00</span>
+    </div>
+    <div class="atp-sep"></div>
+    <div class="atp-group">
+      <select class="atp-small" data-el="speed" title="Скорость воспроизведения" aria-label="Скорость">
+        <option value="0.25">25%</option><option value="0.5">50%</option><option value="0.6">60%</option>
+        <option value="0.75">75%</option><option value="0.9">90%</option><option value="1" selected>100%</option>
+        <option value="1.25">125%</option><option value="1.5">150%</option>
+      </select>
+      <button class="atp-btn icon" data-act="loop" title="Повтор (выделите такты мышкой — будет повторяться выделенное)" aria-label="Повтор">
+        <svg viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+      <button class="atp-btn icon" data-act="metro" title="Метроном" aria-label="Метроном">
+        <svg viewBox="0 0 24 24"><path d="M12 11.5 17 4M8.5 3h7l3.5 18H5z"/><path d="M6.5 15h11"/></svg>
+      </button>
+      <button class="atp-btn icon" data-act="count" title="Отсчёт перед началом" aria-label="Отсчёт">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg>
+      </button>
+    </div>
+    <div class="atp-sep atp-hide-m"></div>
+    <div class="atp-group">
+      <select class="atp-small" data-el="stave" title="Что показывать" aria-label="Вид нотации">
+        <option value="tab">Табы</option><option value="scoretab" selected>Ноты + табы</option><option value="score">Ноты</option>
+      </select>
+      <select class="atp-small atp-hide-l" data-el="layout" title="Раскладка" aria-label="Раскладка">
+        <option value="page" selected>Страница</option><option value="horizontal">Лента</option>
+      </select>
+      <button class="atp-btn icon" data-act="zoomout" title="Уменьшить" aria-label="Уменьшить"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/></svg></button>
+      <span class="atp-time" data-el="zoom" style="min-width:40px;text-align:center">100%</span>
+      <button class="atp-btn icon" data-act="zoomin" title="Увеличить" aria-label="Увеличить"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6M11 8v6"/></svg></button>
+      <button class="atp-btn icon on" data-act="follow" title="Следовать за курсором" aria-label="Следовать за курсором"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
+    </div>
+    <div class="atp-sep atp-hide-m"></div>
+    <div class="atp-vol" title="Общая громкость">
+      <svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+      <input class="atp-range" data-el="master" type="range" min="0" max="1" step="0.01" value="0.9" style="--p:90%" aria-label="Громкость">
+    </div>
+    <span class="atp-sound" data-el="sound"></span>
+    <button class="atp-btn icon atp-hide-m" data-act="print" title="Печать / PDF" aria-label="Печать"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
+    <button class="atp-btn icon" data-act="full" title="На весь экран" aria-label="На весь экран"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
   </div>
 </div>
 
+<!-- ===================== 5. ЛОГИКА ПЛЕЕРА ===================== -->
 <script>
 (function () {
-  // ================= СЮДА ВСТАВЛЯЙТЕ ССЫЛКИ НА ФАЙЛЫ ИЗ S3 =================
-  // title — название в списке, url — прямая ссылка на файл (.gp, .gp5, .gpx и т.д.)
-  var SONGS = [
-    { title: 'Песня 1', url: 'https://ВАШ-БАКЕТ.хранилище.ru/song1.gp' },
-    { title: 'Песня 2', url: 'https://ВАШ-БАКЕТ.хранилище.ru/song2.gp5' }
-    // Следующая песня: { title: 'Название', url: 'ссылка' },
-  ];
-  // ==========================================================================
+  'use strict';
+  var CDN = 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.8.4/dist/';
+  var CFG = window.TAB_PLAYER_CONFIG || {};
+  var root = document.getElementById('atp');
+  if (!root || root.dataset.ready) return;   // защита от двойного запуска
+  root.dataset.ready = '1';
 
-  function $(id) { return document.getElementById(id); }
-  function showOverlay(text, spin) {
-    $('atp-overlay-text').textContent = text;
-    document.querySelector('.atp-spin').style.display = spin === false ? 'none' : 'block';
-    $('atp-overlay').style.display = 'flex';
+  // Короткие помощники: найти элемент внутри плеера
+  function el(name) { return root.querySelector('[data-el="' + name + '"]'); }
+  function act(name) { return root.querySelector('[data-act="' + name + '"]'); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // Применяем настройки внешнего вида
+  if (CFG.height) root.style.setProperty('--h', CFG.height);
+  if (CFG.accent) root.style.setProperty('--accent', CFG.accent);
+  if (CFG.allowUrlInput === false) el('urlform').style.display = 'none';
+  if (CFG.allowLocalFiles === false) el('filebtn').style.display = 'none';
+  if (window.innerWidth < 900) root.classList.add('side-hidden');
+
+  // ---------- Окно состояния (загрузка / ошибка / подсказка) ----------
+  function showLoading(text) {
+    el('overlay').hidden = false;
+    el('card').className = 'atp-card';
+    el('card').innerHTML = '<div class="atp-spin"></div><h3>' + esc(text) + '</h3><div class="atp-bar"><i data-el="prog"></i></div>';
+  }
+  function setProgress(p) { var b = el('prog'); if (b) b.style.width = Math.round(p * 100) + '%'; }
+  function hideOverlay() { el('overlay').hidden = true; }
+  function showError(title, html) {
+    el('overlay').hidden = false;
+    el('card').className = 'atp-card err';
+    el('card').innerHTML = '<h3>' + esc(title) + '</h3>' + html;
+  }
+  function showEmpty() {
+    el('overlay').hidden = false;
+    el('card').className = 'atp-card';
+    el('card').innerHTML = '<h3>Песен пока нет</h3><p>Добавьте ссылки на файлы в список <b>songs</b> в начале кода, вставьте ссылку в поле сверху или откройте файл с компьютера.</p>';
   }
 
-  function start() {
-    if (typeof alphaTab === 'undefined') { return setTimeout(start, 100); }
+  // Ждём, пока загрузится движок alphaTab (на Tilda скрипты иногда грузятся с задержкой)
+  var tries = 0;
+  (function wait() {
+    if (window.alphaTab && window.alphaTab.AlphaTabApi) return init();
+    if (++tries > 200) return showError('Не загрузился движок alphaTab', '<p>Проверьте интернет-соединение или блокировщик рекламы и обновите страницу.</p>');
+    setTimeout(wait, 50);
+  })();
 
-    var songSel = $('atp-songs');
-    SONGS.forEach(function (s, i) {
-      var o = document.createElement('option'); o.value = i; o.textContent = s.title; songSel.appendChild(o);
-    });
+  function init() {
+    var AT = window.alphaTab;
+    var css = getComputedStyle(root);
+    var accent = (CFG.accent || css.getPropertyValue('--accent') || '#f5a524').trim();
 
-    var api = new alphaTab.AlphaTabApi($('atp-main'), {
-      core: { file: SONGS[0].url },
+    // ---------- Создаём alphaTab ----------
+    var api = new AT.AlphaTabApi(el('score'), {
+      core: {
+        fontDirectory: CDN + 'font/',       // нотный шрифт Bravura
+        scriptFile: CDN + 'alphaTab.min.js', // нужен для фоновой отрисовки (Web Worker)
+        useWorkers: true
+      },
+      importer: { encoding: CFG.encoding || 'windows-1251' }, // чтобы русские названия не превращались в «������»
       display: {
         scale: 1,
+        layoutMode: AT.LayoutMode.Page,
+        staveProfile: AT.StaveProfile.ScoreTab,
+        // Цвета нот под тёмную тему
         resources: {
-          mainGlyphColor: '#e5e7eb', secondaryGlyphColor: 'rgba(229,231,235,0.45)',
-          staffLineColor: '#4b5563', barSeparatorColor: '#9ca3af',
-          barNumberColor: '#f59e0b', scoreInfoColor: '#e5e7eb'
+          staffLineColor: '#4a4f5a',
+          barSeparatorColor: '#6b707c',
+          barNumberColor: accent,
+          mainGlyphColor: '#ecebe8',
+          secondaryGlyphColor: 'rgba(236,235,232,0.55)',
+          scoreInfoColor: '#ecebe8'
         }
       },
       player: {
-        enablePlayer: true, enableCursor: true, enableUserInteraction: true,
-        soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2',
-        scrollElement: $('atp-view')
+        playerMode: AT.PlayerMode.EnabledSynthesizer, // встроенный синтезатор
+        soundFont: CDN + 'soundfont/sonivox.sf2',      // звуки инструментов
+        scrollElement: el('view'),                     // какая область прокручивается за курсором
+        enableCursor: true,
+        enableAnimatedBeatCursor: true,
+        enableElementHighlighting: true,
+        enableUserInteraction: true,                   // клик по нотам = перемотка, протяжка = выделение
+        scrollOffsetY: -40
       }
     });
+    api.masterVolume = 0.9;
 
-    api.renderStarted.on(function () {
-      showOverlay('Отрисовка нот…');
-      var shown = {};
-      (api.tracks || []).forEach(function (t) { shown[t.index] = true; });
-      document.querySelectorAll('.atp-track').forEach(function (el) {
-        el.classList.toggle('active', !!shown[el.dataset.index]);
-      });
-    });
-    api.renderFinished.on(function () { $('atp-overlay').style.display = 'none'; });
-    api.error.on(function () {
-      showOverlay('Не удалось загрузить файл. Проверьте ссылку и настройки CORS в хранилище.', false);
-    });
+    window.tabPlayer = api; // доступ из консоли для отладки
 
-    api.scoreLoaded.on(function (score) {
-      $('atp-title').textContent = (score.title || '') + (score.artist ? ' — ' + score.artist : '');
-      var box = $('atp-tracks'); box.innerHTML = '';
-      score.tracks.forEach(function (track) {
-        var div = document.createElement('div');
-        div.className = 'atp-track'; div.dataset.index = track.index;
+    var score = null;            // загруженная песня
+    var shown = [];              // какие дорожки сейчас показаны
+    var endTime = 0, seeking = false, playing = false;
 
-        var name = document.createElement('div');
-        name.className = 'atp-tname';
-        name.textContent = track.name || ('Трек ' + (track.index + 1));
-        name.title = 'Показать ноты этого инструмента';
-        name.onclick = function () { api.renderTracks([track]); };
-
-        var row = document.createElement('div'); row.className = 'atp-trow';
-        var mute = document.createElement('button'); mute.textContent = 'Mute'; mute.title = 'Выключить звук';
-        var solo = document.createElement('button'); solo.textContent = 'Solo'; solo.title = 'Слушать только этот';
-        var vol = document.createElement('input'); vol.type = 'range'; vol.min = 0; vol.max = 2; vol.step = 0.05; vol.value = 1; vol.title = 'Громкость';
-
-        mute.onclick = function () { var on = !mute.classList.contains('on'); mute.classList.toggle('on', on); api.changeTrackMute([track], on); };
-        solo.onclick = function () { var on = !solo.classList.contains('on'); solo.classList.toggle('on', on); api.changeTrackSolo([track], on); };
-        vol.oninput = function () { api.changeTrackVolume([track], parseFloat(vol.value)); };
-
-        row.appendChild(mute); row.appendChild(solo); row.appendChild(vol);
-        div.appendChild(name); div.appendChild(row); box.appendChild(div);
-      });
-    });
-
-    songSel.onchange = function () {
-      showOverlay('Загрузка нот…');
+    // ---------- Загрузка файла по ссылке ----------
+    // Файл скачиваем сами (fetch), чтобы показать понятную ошибку, если S3 не пускает.
+    var loadId = 0;
+    function loadUrl(url, label) {
+      var my = ++loadId;
+      url = String(url || '').trim();
+      if (!url) return;
       api.stop();
-      api.load(SONGS[songSel.value].url);
-    };
+      showLoading('Загружаю ' + (label || 'файл') + '…');
+      fetch(url, { mode: 'cors' })
+        .then(function (r) {
+          if (!r.ok) throw { http: r.status };
+          var total = +r.headers.get('content-length') || 0;
+          if (!r.body || !total) return r.arrayBuffer();
+          // читаем по частям, чтобы показать прогресс
+          var reader = r.body.getReader(), chunks = [], got = 0;
+          return (function pump() {
+            return reader.read().then(function (res) {
+              if (res.done) {
+                var out = new Uint8Array(got), o = 0;
+                chunks.forEach(function (c) { out.set(c, o); o += c.length; });
+                return out.buffer;
+              }
+              chunks.push(res.value); got += res.value.length; setProgress(got / total);
+              return pump();
+            });
+          })();
+        })
+        .then(function (buf) { if (my === loadId) loadData(new Uint8Array(buf)); })
+        .catch(function (e) {
+          if (my !== loadId) return;
+          if (e && e.http) {
+            var why = e.http === 403 ? 'Доступ запрещён (403). Файл в бакете закрыт — включите публичный доступ на чтение.'
+              : e.http === 404 ? 'Файл не найден (404). Проверьте ссылку: имя файла, регистр букв, папку.'
+              : 'Сервер ответил ошибкой ' + e.http + '.';
+            showError('Не удалось загрузить файл', '<p>' + why + '</p><code>' + esc(url) + '</code>');
+          } else {
+            showError('Хранилище не разрешает сайту читать файл',
+              '<p>Скорее всего, в бакете S3 не настроен <b>CORS</b>. Файл открывается в браузере напрямую, но со страницы сайта браузер его блокирует.</p>' +
+              '<code>' + esc(url) + '</code>' +
+              '<ol><li>Beget → Облако → ваше хранилище → Настройки → CORS → «Добавить».</li>' +
+              '<li>Origin: <b>' + esc(location.origin) + '</b> (адрес этой страницы).</li>' +
+              '<li>Методы: <b>GET</b> и <b>HEAD</b>. Заголовки: <b>*</b>. Сохранить.</li>' +
+              '<li>Обновите страницу (Ctrl+F5 / Cmd+Shift+R).</li></ol>');
+          }
+        });
+    }
 
+    // Передаём байты файла в alphaTab
+    function loadData(bytes) {
+      showLoading('Рисую ноты…');
+      try {
+        if (api.load(bytes) === false) throw new Error('format');
+      } catch (e) {
+        showError('Не получилось открыть файл', '<p>Формат не распознан. Поддерживаются Guitar Pro 3–8 (.gp3, .gp4, .gp5, .gpx, .gp) и MusicXML.</p>');
+      }
+    }
+
+    // ---------- События alphaTab ----------
+    api.error.on(function (e) {
+      console.error('[tab-player]', e);
+      showError('Ошибка при открытии файла', '<p>' + esc(e && e.message ? e.message : 'Файл повреждён или формат не поддерживается.') + '</p>');
+    });
+
+    // Песня прочитана: показываем название и список инструментов
+    api.scoreLoaded.on(function (s) {
+      score = s;
+      el('title').textContent = s.title || 'Без названия';
+      el('artist').textContent = [s.artist, s.album].filter(Boolean).join(' · ') + (s.tempo ? ' · ' + s.tempo + ' BPM' : '');
+      el('tcount').textContent = s.tracks.length;
+      shown = [s.tracks[0]];
+      buildTracks();
+    });
+
+    api.renderStarted.on(function () { if (!el('card').classList.contains('err')) showLoading('Рисую ноты…'); });
+    api.renderFinished.on(function () { if (!el('card').classList.contains('err')) hideOverlay(); });
+
+    // Загрузка звуков (один раз, ~1,3 МБ)
     api.soundFontLoad.on(function (e) {
-      $('atp-load').textContent = 'Звуки: ' + Math.floor(e.loaded / e.total * 100) + '%';
+      el('sound').textContent = e.total ? 'Загрузка звуков ' + Math.floor(e.loaded / e.total * 100) + '%' : 'Загрузка звуков…';
     });
     api.playerReady.on(function () {
-      $('atp-load').style.display = 'none';
-      $('atp-play').disabled = false; $('atp-stop').disabled = false;
+      el('sound').textContent = '';
+      act('play').disabled = false; act('stop').disabled = false;
     });
+
+    // Смена состояния: играет / пауза
     api.playerStateChanged.on(function (e) {
-      $('atp-play').textContent = (e.state === alphaTab.synth.PlayerState.Playing) ? '❚❚' : '▶';
+      playing = e.state === AT.synth.PlayerState.Playing;
+      el('playicon').innerHTML = playing ? '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>' : '<path d="M8 5.5v13l11-6.5z"/>';
+      act('play').setAttribute('aria-label', playing ? 'Пауза' : 'Играть');
     });
 
-    function fmt(ms) {
-      var s = (ms / 1000) | 0, m = (s / 60) | 0; s = s - m * 60;
-      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-    }
-    var seeking = false, seek = $('atp-seek');
-    seek.onmousedown = seek.ontouchstart = function () { seeking = true; };
-    seek.onchange = function () {
-      api.timePosition = (parseFloat(seek.value) / 1000) * (api.__end || 0);
-      seeking = false;
-    };
+    // Позиция воспроизведения → время и полоска
+    function fmt(ms) { var s = Math.max(0, ms / 1000 | 0), m = s / 60 | 0; s -= m * 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
+    function paint(input) { input.style.setProperty('--p', ((input.value - input.min) / (input.max - input.min) * 100) + '%'); }
     api.playerPositionChanged.on(function (e) {
-      api.__end = e.endTime;
-      $('atp-time').textContent = fmt(e.currentTime) + ' / ' + fmt(e.endTime);
-      if (!seeking && e.endTime) seek.value = Math.round(e.currentTime / e.endTime * 1000);
+      endTime = e.endTime;
+      el('cur').textContent = fmt(e.currentTime);
+      el('end').textContent = fmt(e.endTime);
+      if (!seeking) { el('seek').value = e.endTime ? Math.round(e.currentTime / e.endTime * 1000) : 0; paint(el('seek')); }
     });
 
-    $('atp-play').onclick = function () { api.playPause(); };
-    $('atp-stop').onclick = function () { api.stop(); };
-    $('atp-count').onclick = function () { var b = $('atp-count'); b.classList.toggle('on'); api.countInVolume = b.classList.contains('on') ? 1 : 0; };
-    $('atp-metro').onclick = function () { var b = $('atp-metro'); b.classList.toggle('on'); api.metronomeVolume = b.classList.contains('on') ? 1 : 0; };
-    $('atp-loop').onclick = function () { var b = $('atp-loop'); b.classList.toggle('on'); api.isLooping = b.classList.contains('on'); };
-    $('atp-speed').onchange = function () { api.playbackSpeed = parseFloat($('atp-speed').value); };
-    $('atp-zoom').onchange = function () {
-      api.settings.display.scale = parseFloat($('atp-zoom').value);
-      api.updateSettings(); api.render();
+    // ---------- Список инструментов ----------
+    var ICONS = {
+      guitar: '<path d="m11.9 12.1 9-9M18 3l3 3M9.5 12a3.5 3.5 0 1 0-4.6 4.6L3 18.5 5.5 21l1.9-1.9A3.5 3.5 0 1 0 12 14.5"/><circle cx="9" cy="15" r="1"/>',
+      bass: '<path d="m13 11 8-8M17 3l4 4M10 11a4 4 0 1 0-5 5l-2 2 3 3 2-2a4 4 0 1 0 5-5"/>',
+      drums: '<ellipse cx="12" cy="9" rx="9" ry="3.5"/><path d="M3 9v6c0 1.9 4 3.5 9 3.5s9-1.6 9-3.5V9M7 3l3 5M17 3l-3 5"/>',
+      keys: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M7 5v8M12 5v8M17 5v8M7 13v6M12 13v6M17 13v6"/>',
+      voice: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/>',
+      other: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'
     };
-    $('atp-print').onclick = function () { api.print(); };
-  }
+    function kind(t) {
+      var p = t.playbackInfo ? t.playbackInfo.program : 0;
+      var perc = t.staves && t.staves[0] && t.staves[0].isPercussion;
+      if (perc || (t.playbackInfo && t.playbackInfo.primaryChannel === 9)) return ['drums', 'Ударные'];
+      if (p >= 32 && p <= 39) return ['bass', 'Бас'];
+      if (p >= 24 && p <= 31) return ['guitar', 'Гитара'];
+      if (p <= 7) return ['keys', 'Клавишные'];
+      if (p >= 52 && p <= 54) return ['voice', 'Вокал'];
+      return ['other', 'Инструмент'];
+    }
+    function isShown(t) { return shown.indexOf(t) >= 0; }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
+    function buildTracks() {
+      var box = el('tracks');
+      box.innerHTML = '';
+      score.tracks.forEach(function (t) {
+        var k = kind(t);
+        var strings = t.staves && t.staves[0] && t.staves[0].tuning && t.staves[0].tuning.length;
+        var d = document.createElement('div');
+        d.className = 'atp-track' + (isShown(t) ? ' shown' : '');
+        d.innerHTML =
+          '<div class="atp-track-top">' +
+            '<div class="atp-ico"><svg viewBox="0 0 24 24">' + ICONS[k[0]] + '</svg></div>' +
+            '<div class="atp-tname"><b>' + esc(t.name || k[1]) + '</b><span>' + k[1] + (strings && k[0] !== 'drums' ? ' · ' + strings + ' стр.' : '') + '</span></div>' +
+            '<button class="atp-eye" title="Добавить/убрать с экрана" aria-label="Показать на экране"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>' +
+          '</div>' +
+          '<div class="atp-track-ctl">' +
+            '<button class="atp-ms mute" title="Заглушить">M</button>' +
+            '<button class="atp-ms solo" title="Только этот инструмент">S</button>' +
+            '<input class="atp-range" type="range" min="0" max="1.5" step="0.05" value="1" style="--p:66.6%" title="Громкость инструмента" aria-label="Громкость">' +
+          '</div>';
+        // Клик по названию: показать только этот инструмент
+        d.querySelector('.atp-tname').onclick = d.querySelector('.atp-ico').onclick = function () {
+          shown = [t]; render();
+          if (window.innerWidth < 900) root.classList.add('side-hidden');
+        };
+        // Глаз: добавить/убрать дорожку к уже показанным
+        d.querySelector('.atp-eye').onclick = function (ev) {
+          ev.stopPropagation();
+          if (isShown(t)) { if (shown.length > 1) shown.splice(shown.indexOf(t), 1); }
+          else shown.push(t);
+          shown.sort(function (a, b) { return a.index - b.index; });
+          render();
+        };
+        var mute = d.querySelector('.mute'), solo = d.querySelector('.solo'), vol = d.querySelector('input');
+        mute.onclick = function () { var on = mute.classList.toggle('on'); api.changeTrackMute([t], on); };
+        solo.onclick = function () { var on = solo.classList.toggle('on'); api.changeTrackSolo([t], on); };
+        vol.oninput = function () { paint(vol); api.changeTrackVolume([t], parseFloat(vol.value)); };
+        box.appendChild(d);
+      });
+    }
+    function render() {
+      api.renderTracks(shown);
+      [].forEach.call(el('tracks').children, function (d, i) { d.classList.toggle('shown', isShown(score.tracks[i])); });
+    }
+
+    // ---------- Кнопки управления ----------
+    act('play').onclick = function () { api.playPause(); };
+    act('stop').onclick = function () { api.stop(); };
+    act('side').onclick = function () { root.classList.toggle('side-hidden'); };
+    act('loop').onclick = function () { api.isLooping = this.classList.toggle('on'); };
+    act('metro').onclick = function () { api.metronomeVolume = this.classList.toggle('on') ? 1 : 0; };
+    act('count').onclick = function () { api.countInVolume = this.classList.toggle('on') ? 1 : 0; };
+    act('follow').onclick = function () {
+      api.settings.player.scrollMode = this.classList.toggle('on') ? AT.ScrollMode.Continuous : AT.ScrollMode.Off;
+      api.updateSettings();
+    };
+    act('print').onclick = function () { api.print(); };
+    act('full').onclick = function () {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (root.requestFullscreen) root.requestFullscreen();
+      else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+    };
+
+    // Масштаб
+    var zoom = 1;
+    function setZoom(z) {
+      zoom = Math.min(2, Math.max(0.5, Math.round(z * 10) / 10));
+      el('zoom').textContent = Math.round(zoom * 100) + '%';
+      api.settings.display.scale = zoom; api.updateSettings(); if (score) api.render();
+    }
+    act('zoomin').onclick = function () { setZoom(zoom + 0.1); };
+    act('zoomout').onclick = function () { setZoom(zoom - 0.1); };
+    if (window.innerWidth < 560) setZoom(0.8);
+
+    // Скорость, вид нотации, раскладка, громкость
+    el('speed').onchange = function () { api.playbackSpeed = parseFloat(this.value); };
+    el('stave').onchange = function () {
+      api.settings.display.staveProfile = { tab: AT.StaveProfile.Tab, scoretab: AT.StaveProfile.ScoreTab, score: AT.StaveProfile.Score }[this.value];
+      api.updateSettings(); if (score) api.render();
+    };
+    el('layout').onchange = function () {
+      api.settings.display.layoutMode = this.value === 'horizontal' ? AT.LayoutMode.Horizontal : AT.LayoutMode.Page;
+      api.updateSettings(); if (score) api.render();
+    };
+    el('master').oninput = function () { paint(this); api.masterVolume = parseFloat(this.value); };
+
+    // Перемотка полоской
+    var seek = el('seek');
+    seek.oninput = function () { seeking = true; paint(seek); el('cur').textContent = fmt(endTime * seek.value / 1000); };
+    seek.onchange = function () { seeking = false; if (endTime) api.timePosition = endTime * seek.value / 1000; };
+
+    // Пробел = играть/пауза (если фокус не в поле ввода)
+    document.addEventListener('keydown', function (e) {
+      if (e.code !== 'Space' || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+      var r = root.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > innerHeight || act('play').disabled) return;
+      e.preventDefault(); api.playPause();
+    });
+
+    // ---------- Выбор песни ----------
+    var songs = [];
+    function fillSongs(list) {
+      songs = (list || []).filter(function (s) { return s && s.url; });
+      var sel = el('songs');
+      sel.innerHTML = songs.map(function (s, i) { return '<option value="' + i + '">' + esc(s.title || s.url.split('/').pop()) + '</option>'; }).join('');
+      sel.disabled = !songs.length;
+    }
+    el('songs').onchange = function () { var s = songs[this.value]; if (s) loadUrl(s.url, '«' + (s.title || 'файл') + '»'); };
+
+    // Ссылка, вставленная вручную
+    el('urlform').onsubmit = function (e) {
+      e.preventDefault();
+      var u = el('url').value.trim(); if (!u) return;
+      songs.push({ title: decodeURIComponent(u.split('/').pop().split('?')[0]), url: u });
+      fillSongs(songs); el('songs').value = songs.length - 1;
+      loadUrl(u);
+    };
+
+    // Файл с компьютера
+    el('file').onchange = function () {
+      var f = this.files[0]; if (!f) return;
+      var fr = new FileReader();
+      fr.onload = function () { loadId++; loadData(new Uint8Array(fr.result)); };
+      fr.readAsArrayBuffer(f);
+      this.value = '';
+    };
+    // Перетаскивание файла на ноты
+    el('view').addEventListener('dragover', function (e) { e.preventDefault(); });
+    el('view').addEventListener('drop', function (e) {
+      e.preventDefault();
+      var f = e.dataTransfer.files[0]; if (!f) return;
+      var fr = new FileReader(); fr.onload = function () { loadId++; loadData(new Uint8Array(fr.result)); }; fr.readAsArrayBuffer(f);
+    });
+
+    // ---------- Старт ----------
+    // Ссылку можно передать и в адресе страницы: ...?tab=https://.../song.gp5
+    var q = new URLSearchParams(location.search).get('tab');
+    function start(list) {
+      fillSongs(list);
+      if (q) { el('url').value = q; el('urlform').onsubmit({ preventDefault: function () {} }); }
+      else if (songs.length) loadUrl(songs[0].url, '«' + (songs[0].title || 'файл') + '»');
+      else showEmpty();
+    }
+    if (CFG.songsJsonUrl) {
+      fetch(CFG.songsJsonUrl).then(function (r) { return r.json(); })
+        .then(function (j) { start(Array.isArray(j) ? j : j.songs); })
+        .catch(function () { start(CFG.songs); });
+    } else start(CFG.songs);
+  }
 })();
 </script>
-<!-- ======== КОНЕЦ: копировать до этой строки ======== -->
+<!-- ===================== КОНЕЦ КОДА ДЛЯ TILDA ===================== -->
 
 </body>
 </html>
